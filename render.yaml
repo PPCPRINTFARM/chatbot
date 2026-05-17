@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: chatbot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SHOPIFY_STORE
+        sync: false
+      - key: SHOPIFY_TOKEN
+        sync: false
