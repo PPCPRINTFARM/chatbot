@@ -19,17 +19,25 @@ A Streamlit app that connects ChatGPT to Shopify so you can create:
 pip install -r requirements.txt
 ```
 
-2. Start the app
+2. (Optional) Set credentials as environment variables
+
+```bash
+export OPENAI_API_KEY="sk-..."
+export SHOPIFY_SHOP="your-store.myshopify.com"
+export SHOPIFY_ACCESS_TOKEN="shpat_..."
+```
+
+3. Start the app
 
 ```bash
 streamlit run streamlit_app.py
 ```
 
-3. In the sidebar, enter:
+4. In the sidebar, enter (or let them auto-fill from env vars):
    - OpenAI API key
    - Shopify store domain
    - Shopify Admin API token
 
-4. In chat, ask for actions such as:
+5. In chat, ask for actions such as:
    - "Create a quote for 2 blue t-shirts for chris@example.com"
    - "Create an order for 1 black hoodie for sam@example.com"
