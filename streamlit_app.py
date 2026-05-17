@@ -1,56 +1,178 @@
+import json
+
+import requests
 import streamlit as st
 from openai import OpenAI
 
-# Show title and description.
-st.title("💬 Chatbot")
+
+st.title("💬 ChatGPT + Shopify Assistant")
 st.write(
-    "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-    "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
+    "Use ChatGPT to prepare Shopify quotes (draft orders) and create orders. "
+    "Add your OpenAI and Shopify credentials, then ask for actions like: "
+    "'Create a quote for 2 black hoodies and 1 red cap for customer jane@example.com'."
 )
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
+with st.sidebar:
+    st.header("Credentials")
+    openai_api_key = st.text_input("OpenAI API Key", type="password")
+    shopify_store = st.text_input("Shopify Store Domain", placeholder="your-store.myshopify.com")
+    shopify_token = st.text_input("Shopify Admin API Access Token", type="password")
+
+
+def _shopify_headers(token: str) -> dict:
+    return {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": token,
+    }
+
+
+def create_draft_order(store_domain: str, token: str, input_data: dict) -> str:
+    url = f"https://{store_domain}/admin/api/2025-01/draft_orders.json"
+    payload = {"draft_order": input_data}
+    response = requests.post(
+        url,
+        headers=_shopify_headers(token),
+        json=payload,
+        timeout=30,
+    )
+    response.raise_for_status()
+    body = response.json().get("draft_order", {})
+    return json.dumps(
+        {
+            "id": body.get("id"),
+            "invoice_url": body.get("invoice_url"),
+            "status": body.get("status"),
+            "name": body.get("name"),
+        }
+    )
+
+
+def create_order(store_domain: str, token: str, input_data: dict) -> str:
+    url = f"https://{store_domain}/admin/api/2025-01/orders.json"
+    payload = {"order": input_data}
+    response = requests.post(
+        url,
+        headers=_shopify_headers(token),
+        json=payload,
+        timeout=30,
+    )
+    response.raise_for_status()
+    body = response.json().get("order", {})
+    return json.dumps(
+        {
+            "id": body.get("id"),
+            "order_number": body.get("order_number"),
+            "financial_status": body.get("financial_status"),
+            "fulfillment_status": body.get("fulfillment_status"),
+            "name": body.get("name"),
+        }
+    )
+
+
+TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "create_draft_order",
+            "description": "Create a Shopify draft order (quote).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "input_data": {
+                        "type": "object",
+                        "description": "Exact Shopify draft_order object, including line_items and customer/email details.",
+                    }
+                },
+                "required": ["input_data"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_order",
+            "description": "Create a Shopify order.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "input_data": {
+                        "type": "object",
+                        "description": "Exact Shopify order object, including line_items and customer/email details.",
+                    }
+                },
+                "required": ["input_data"],
+            },
+        },
+    },
+]
+
+
 if not openai_api_key:
     st.info("Please add your OpenAI API key to continue.", icon="🗝️")
+elif not shopify_store or not shopify_token:
+    st.info("Please add your Shopify store domain and Admin API token.", icon="🛍️")
 else:
-
-    # Create an OpenAI client.
     client = OpenAI(api_key=openai_api_key)
 
-    # Create a session state variable to store the chat messages. This ensures that the
-    # messages persist across reruns.
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Display the existing chat messages via `st.chat_message`.
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Create a chat input field to allow the user to enter a message. This will display
-    # automatically at the bottom of the page.
-    if prompt := st.chat_input("What is up?"):
-
-        # Store and display the current prompt.
+    if prompt := st.chat_input("Ask me to create a quote or order in Shopify..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Generate a response using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
-        )
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are a Shopify sales assistant. Help users create quotes and orders. "
+                    "When details are missing, ask concise follow-up questions. "
+                    "Use create_draft_order for quotes and create_order for confirmed purchases."
+                ),
+            },
+            *st.session_state.messages,
+        ]
 
-        # Stream the response to the chat using `st.write_stream`, then store it in 
-        # session state.
-        with st.chat_message("assistant"):
-            response = st.write_stream(stream)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        while True:
+            completion = client.chat.completions.create(
+                model="gpt-4.1-mini",
+                messages=messages,
+                tools=TOOLS,
+            )
+            message = completion.choices[0].message
+
+            if message.tool_calls:
+                messages.append(message)
+                for call in message.tool_calls:
+                    args = json.loads(call.function.arguments)
+                    try:
+                        if call.function.name == "create_draft_order":
+                            result = create_draft_order(shopify_store, shopify_token, args["input_data"])
+                        elif call.function.name == "create_order":
+                            result = create_order(shopify_store, shopify_token, args["input_data"])
+                        else:
+                            result = json.dumps({"error": f"Unknown tool {call.function.name}"})
+                    except requests.HTTPError as exc:
+                        result = json.dumps({"error": f"Shopify error: {exc}", "body": exc.response.text})
+                    except Exception as exc:  # noqa: BLE001
+                        result = json.dumps({"error": str(exc)})
+
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": call.id,
+                            "content": result,
+                        }
+                    )
+                continue
+
+            assistant_text = message.content or "I couldn't generate a response."
+            with st.chat_message("assistant"):
+                st.markdown(assistant_text)
+            st.session_state.messages.append({"role": "assistant", "content": assistant_text})
+            break

@@ -1,19 +1,35 @@
-# 💬 Chatbot template
+# 💬 ChatGPT + Shopify Assistant
 
-A simple Streamlit app that shows how to build a chatbot using OpenAI's GPT-3.5.
+A Streamlit app that connects ChatGPT to Shopify so you can create:
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://chatbot-template.streamlit.app/)
+- **Quotes** as Shopify **draft orders**
+- **Orders** as Shopify **orders**
 
-### How to run it on your own machine
+## What you need
 
-1. Install the requirements
+- OpenAI API key
+- Shopify store domain (for example: `your-store.myshopify.com`)
+- Shopify Admin API access token with permission to write draft orders and orders
 
-   ```
-   $ pip install -r requirements.txt
-   ```
+## How to run locally
 
-2. Run the app
+1. Install dependencies
 
-   ```
-   $ streamlit run streamlit_app.py
-   ```
+```bash
+pip install -r requirements.txt
+```
+
+2. Start the app
+
+```bash
+streamlit run streamlit_app.py
+```
+
+3. In the sidebar, enter:
+   - OpenAI API key
+   - Shopify store domain
+   - Shopify Admin API token
+
+4. In chat, ask for actions such as:
+   - "Create a quote for 2 blue t-shirts for chris@example.com"
+   - "Create an order for 1 black hoodie for sam@example.com"
