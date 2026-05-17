@@ -1,4 +1,5 @@
 import json
+import os
 
 import requests
 import streamlit as st
@@ -14,9 +15,20 @@ st.write(
 
 with st.sidebar:
     st.header("Credentials")
-    openai_api_key = st.text_input("OpenAI API Key", type="password")
-    shopify_store = st.text_input("Shopify Store Domain", placeholder="your-store.myshopify.com")
-    shopify_token = st.text_input("Shopify Admin API Access Token", type="password")
+
+    default_openai_api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+    default_shopify_store = st.secrets.get("SHOPIFY_SHOP", os.getenv("SHOPIFY_SHOP", ""))
+    default_shopify_token = st.secrets.get("SHOPIFY_ACCESS_TOKEN", os.getenv("SHOPIFY_ACCESS_TOKEN", ""))
+
+    openai_api_key = st.text_input("OpenAI API Key", type="password", value=default_openai_api_key)
+    shopify_store = st.text_input(
+        "Shopify Store Domain",
+        placeholder="your-store.myshopify.com",
+        value=default_shopify_store,
+    )
+    shopify_token = st.text_input("Shopify Admin API Access Token", type="password", value=default_shopify_token)
+
+    st.caption("Tip: You can set OPENAI_API_KEY, SHOPIFY_SHOP, and SHOPIFY_ACCESS_TOKEN as environment variables.")
 
 
 def _shopify_headers(token: str) -> dict:
