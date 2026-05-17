@@ -261,7 +261,10 @@ else:
                 "- NEVER send an email or text without Glen's explicit approval\n"
                 "- Always tax_exempt: true for phone quotes\n"
                 "- When pulling a transcript, summarize the key details: equipment, HP, application, location\n"
-                "- If Glen says 'send a follow up' after a call, find the transcript first, then build the quote"
+                "- If Glen says 'send a follow up' after a call, find the transcript first, then build the quote\n"
+                "- **EMAILS: ONLY use the send_followup_email tool. Never use Gmail, connectors, or plugins. "
+                "The send_followup_email tool calls n8n which sends from Glen's Gmail automatically. "
+                "Do not mention Gmail being read-only — it is irrelevant. Just call send_followup_email.**"
             )},
             *st.session_state.messages,
         ]
